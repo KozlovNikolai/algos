@@ -1,23 +1,22 @@
 package main
 
 import (
+	"algos/drawer"
 	"fmt"
-	"image/color"
 	"log"
 	"math"
-	"math/rand"
-	"os"
 	"sort"
-	"strconv"
 
 	"github.com/muesli/clusters"
 	"github.com/muesli/kmeans"
-	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
-	"gonum.org/v1/plot/vg/draw"
 )
 
 var points = plotter.XYs{
+	plotter.XY{X: 350, Y: 2000},
+
+	plotter.XY{X: 2050, Y: 350},
+
 	plotter.XY{X: 300, Y: 300},
 	plotter.XY{X: 312, Y: 290},
 	plotter.XY{X: 302, Y: 315},
@@ -88,7 +87,7 @@ func main() {
 		}
 	}
 	//	fr := 11
-	point, ds := maxDest(points, points[fr])
+	// point, ds := maxDest(points, points[fr])
 	//	fmt.Printf("\nmax dist from %d to %d: %f\n", fr, point, ds)
 
 	printMaxDest(points)
@@ -144,16 +143,16 @@ func main() {
 		}
 		clstrsArray = append(clstrsArray, temp)
 	}
-	err = plotClasters("outClusters.png", clstrsArray)
+	err = drawer.PlotClasters("outClusters.png", clstrsArray)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	err = plotData("outPlots.png", points)
+	err = drawer.PlotData("outPlots.png", points)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	err = plotPolygon("outpol.png", points)
+	err = drawer.PlotPolygon("outpol.png", points)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -168,120 +167,6 @@ func convert(data plotter.XYs) clusters.Observations {
 		})
 	}
 	return d
-}
-
-func plotClasters(path string, clstrsArray []plotter.XYs) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("could not create %s: %v", path, err)
-	}
-
-	p := plot.New()
-
-	for _, clst := range clstrsArray {
-		sc, err := plotter.NewScatter(clst)
-		if err != nil {
-			return fmt.Errorf("could not create scatter: %v", err)
-		}
-		sc.GlyphStyle.Shape = draw.BoxGlyph{}
-
-		sc.Color = color.RGBA{
-			R: uint8(rand.Uint32() / 4),
-			G: uint8(rand.Uint32() / 4),
-			B: uint8(rand.Uint32() / 4),
-			A: 255,
-		}
-		p.Add(sc)
-	}
-
-	wt, err := p.WriterTo(256, 256, "png")
-	if err != nil {
-		return fmt.Errorf("could not create writer: %v", err)
-	}
-	_, err = wt.WriteTo(f)
-	if err != nil {
-		return fmt.Errorf("could not write to %s: %v", path, err)
-	}
-
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", path, err)
-	}
-	return nil
-}
-
-func plotData(path string, xys plotter.XYs) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("could not create %s: %v", path, err)
-	}
-
-	p := plot.New()
-
-	sp, err := plotter.NewScatter(xys)
-	if err != nil {
-		return fmt.Errorf("could not create scatter: %v", err)
-	}
-	sp.GlyphStyle.Shape = draw.CrossGlyph{}
-	sp.Color = color.RGBA{R: 255, A: 255}
-	p.Add(sp)
-
-	var lbs = make([]string, len(xys))
-	for i := range xys {
-		lbs[i] = strconv.Itoa(i)
-	}
-	labels, err := plotter.NewLabels(plotter.XYLabels{
-		XYs:    xys,
-		Labels: lbs,
-	})
-	if err != nil {
-		log.Fatalf("could not creates labels plotter: %+v", err)
-	}
-	p.Add(labels)
-
-	wt, err := p.WriterTo(256, 256, "png")
-	if err != nil {
-		return fmt.Errorf("could not create writer: %v", err)
-	}
-	_, err = wt.WriteTo(f)
-	if err != nil {
-		return fmt.Errorf("could not write to %s: %v", path, err)
-	}
-
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", path, err)
-	}
-	return nil
-}
-
-func plotPolygon(path string, xyer plotter.XYer) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("could not create %s: %v", path, err)
-	}
-
-	p := plot.New()
-
-	s, err := plotter.NewPolygon(xyer)
-	if err != nil {
-		return fmt.Errorf("could not create scatter: %v", err)
-	}
-
-	s.Color = color.RGBA{R: 255, A: 255}
-	p.Add(s)
-
-	wt, err := p.WriterTo(256, 256, "png")
-	if err != nil {
-		return fmt.Errorf("could not create writer: %v", err)
-	}
-	_, err = wt.WriteTo(f)
-	if err != nil {
-		return fmt.Errorf("could not write to %s: %v", path, err)
-	}
-
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", path, err)
-	}
-	return nil
 }
 
 func distance(one, two plotter.XY) float64 {
@@ -318,14 +203,14 @@ func maxDest(ptrs plotter.XYs, pt plotter.XY) (int, float64) {
 	return to, max
 }
 
-func findStart(points plotter.XYs, clastNumb int) {
-	var nextPt int
-	startPoint := rand.Intn(len(points))
-	for i := 0; i < clastNumb; i++ {
-		nextPt, dist := maxDest(points, points[startPoint])
-		for j, v := range points {
-			oned := distance(points[startPoint], points[j])
-			twod := distance(points[nextPt], points[j])
-		}
-	}
-}
+// func findStart(points plotter.XYs, clastNumb int) {
+// 	var nextPt int
+// 	startPoint := rand.Intn(len(points))
+// 	for i := 0; i < clastNumb; i++ {
+// 		nextPt, dist := maxDest(points, points[startPoint])
+// 		for j, v := range points {
+// 			oned := distance(points[startPoint], points[j])
+// 			twod := distance(points[nextPt], points[j])
+// 		}
+// 	}
+// }
